@@ -1,0 +1,147 @@
+-- ============================================================
+-- PEHCHAN WALE — Super App Schema v3
+-- Universal O2O Network (E-commerce, Bidding, SOS, Auto-Catalog)
+-- ============================================================
+
+-- Drop existing tables to ensure a clean slate
+DROP TABLE IF EXISTS public.vendor_bids CASCADE;
+DROP TABLE IF EXISTS public.customer_requests CASCADE;
+DROP TABLE IF EXISTS public.shop_inventory CASCADE;
+DROP TABLE IF EXISTS public.shops CASCADE;
+DROP TABLE IF EXISTS public.master_catalog CASCADE;
+DROP TABLE IF EXISTS public.profiles CASCADE;
+
+-- ────────────────────────────────────────────────────────────
+-- 1. PROFILES
+-- For all users (Customers, Vendors, Mechanics, Agents)
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE public.profiles (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    -- role could be an array or string. Using TEXT for flexibility.
+    role TEXT NOT NULL DEFAULT 'customer' CHECK (role IN ('customer', 'vendor', 'agent', 'mechanic')),
+    pehchan_score INTEGER NOT NULL DEFAULT 50 CHECK (pehchan_score >= 0 AND pehchan_score <= 100),
+    wallet_balance NUMERIC(12, 2) NOT NULL DEFAULT 0.00,
+    location_lat DOUBLE PRECISION,
+    location_lng DOUBLE PRECISION,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.profiles IS 'Universal profiles for all users on the platform.';
+
+-- ────────────────────────────────────────────────────────────
+-- 2. MASTER CATALOG
+-- Global preset items for 1-click shop registration
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE public.master_catalog (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    category TEXT NOT NULL,
+    item_name TEXT NOT NULL,
+    base_price NUMERIC(10, 2) NOT NULL,
+    image_url TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.master_catalog IS 'Preset items to allow vendors to set up their shops in 1-click.';
+
+-- ────────────────────────────────────────────────────────────
+-- 3. SHOPS
+-- The Mini-Websites for local vendors
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE public.shops (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    owner_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    shop_name TEXT NOT NULL,
+    banner_url TEXT,
+    is_verified BOOLEAN NOT NULL DEFAULT false,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.shops IS 'Premium Mini-Websites for verified local vendors and shopkeepers.';
+
+-- ────────────────────────────────────────────────────────────
+-- 4. SHOP INVENTORY
+-- The actual items being sold in specific shops
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE public.shop_inventory (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    shop_id UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
+    master_item_id UUID REFERENCES public.master_catalog(id) ON DELETE SET NULL, -- Optional mapping to global preset
+    custom_name TEXT, -- Vendors can override the preset name
+    custom_price NUMERIC(10, 2), -- Vendors set their own price
+    stock TEXT, -- Free text for flexibility (e.g., "10 kgs", "5 items")
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.shop_inventory IS 'Inventory of items mapped to specific shops.';
+
+-- ────────────────────────────────────────────────────────────
+-- 5. CUSTOMER REQUESTS
+-- The Bidding/SOS Engine for finding mechanics and help
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE public.customer_requests (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    customer_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    request_type TEXT NOT NULL CHECK (request_type IN ('bidding', 'sos_emergency')),
+    description TEXT NOT NULL,
+    photo_url TEXT,
+    estimated_budget NUMERIC(10, 2),
+    status TEXT NOT NULL DEFAULT 'open' CHECK (status IN ('open', 'assigned', 'resolved', 'cancelled')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE public.customer_requests IS 'Requests submitted by customers for local bids or SOS emergencies.';
+
+-- ────────────────────────────────────────────────────────────
+-- 6. VENDOR BIDS
+-- Where local repairmen send deals on customer requests
+-- ────────────────────────────────────────────────────────────
+CREATE TABLE public.vendor_bids (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    request_id UUID NOT NULL REFERENCES public.customer_requests(id) ON DELETE CASCADE,
+    vendor_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
+    bid_amount NUMERIC(10, 2) NOT NULL,
+    voice_note_url TEXT,
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'accepted', 'rejected')),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    UNIQUE (request_id, vendor_id) -- A vendor can only bid once per request
+);
+
+COMMENT ON TABLE public.vendor_bids IS 'Bids placed by vendors/mechanics on customer requests.';
+
+-- ============================================================
+-- ROW LEVEL SECURITY (RLS) POLICIES (Basic Setup)
+-- ============================================================
+
+ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.master_catalog ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shops ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shop_inventory ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.customer_requests ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.vendor_bids ENABLE ROW LEVEL SECURITY;
+
+-- Profiles: Anyone can read, users can update their own
+CREATE POLICY "Profiles are visible to everyone." ON public.profiles FOR SELECT USING (true);
+CREATE POLICY "Users can update own profile." ON public.profiles FOR UPDATE USING (true); -- Requires auth setup to secure
+
+-- Master Catalog: Anyone can read
+CREATE POLICY "Master catalog is visible to everyone." ON public.master_catalog FOR SELECT USING (true);
+
+-- Shops: Anyone can read
+CREATE POLICY "Shops are visible to everyone." ON public.shops FOR SELECT USING (true);
+
+-- Inventory: Anyone can read
+CREATE POLICY "Inventory is visible to everyone." ON public.shop_inventory FOR SELECT USING (true);
+
+-- Customer Requests: Anyone can read
+CREATE POLICY "Requests are visible to everyone." ON public.customer_requests FOR SELECT USING (true);
+
+-- Bids: Anyone can read
+CREATE POLICY "Bids are visible to everyone." ON public.vendor_bids FOR SELECT USING (true);
+
+-- ============================================================
+-- END OF SCHEMA
+-- ============================================================

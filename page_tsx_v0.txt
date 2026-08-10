@@ -1,0 +1,824 @@
+"use client";
+
+import { useState, useRef, useCallback } from "react";
+import {
+  MapPin,
+  ChevronDown,
+  Search,
+  Camera,
+  Bell,
+  User,
+  ShoppingBag,
+  Wrench,
+  Scissors,
+  Paintbrush,
+  Zap,
+  BadgeCheck,
+  ArrowRight,
+  Navigation,
+  Store,
+  Clock,
+  Heart,
+  Bookmark,
+  Star,
+  Phone,
+  ChevronLeft,
+  ChevronRight,
+  Truck,
+  ShieldCheck,
+  Users,
+  IndianRupee,
+  Leaf,
+  Scale,
+  type LucideIcon,
+} from "lucide-react";
+
+/* ══════════════════════════════════════════════════════════════════
+   MOCK DATA — Community O2O Platform
+   ══════════════════════════════════════════════════════════════════ */
+
+interface LocalProduct {
+  id: number;
+  name: string;
+  shop: string;
+  shopVerified: boolean;
+  localPrice: number;
+  onlinePrice: number;
+  distance: string;
+  emoji: string;
+  available: string;
+  category: string;
+}
+
+const localProducts: LocalProduct[] = [
+  { id: 1, name: "Surf Excel Matic (2kg)", shop: "Sharma General Store", shopVerified: true, localPrice: 340, onlinePrice: 395, distance: "800m", emoji: "🧴", available: "In stock", category: "grocery" },
+  { id: 2, name: "Fresh Cabbage (1kg)", shop: "Sabzi Mandi - Ramu", shopVerified: true, localPrice: 25, onlinePrice: 45, distance: "400m", emoji: "🥬", available: "Fresh today", category: "vegetables" },
+  { id: 3, name: "HP Laptop Charger 65W", shop: "Tech Hub Electronics", shopVerified: true, localPrice: 420, onlinePrice: 599, distance: "1.5km", emoji: "🔌", available: "2 left", category: "electronics" },
+  { id: 4, name: "Amul Butter (500g)", shop: "Krishna Kirana", shopVerified: true, localPrice: 270, onlinePrice: 285, distance: "600m", emoji: "🧈", available: "In stock", category: "grocery" },
+  { id: 5, name: "Ceiling Fan Capacitor", shop: "Gupta Electric Works", shopVerified: false, localPrice: 35, onlinePrice: 120, distance: "1.2km", emoji: "⚡", available: "In stock", category: "electronics" },
+  { id: 6, name: "Ashirvaad Atta (10kg)", shop: "Gupta Provision Store", shopVerified: true, localPrice: 410, onlinePrice: 480, distance: "350m", emoji: "🌾", available: "In stock", category: "grocery" },
+  { id: 7, name: "Coconut Oil (1L) Cold-Pressed", shop: "Organic Corner", shopVerified: true, localPrice: 190, onlinePrice: 260, distance: "2km", emoji: "🥥", available: "Limited", category: "grocery" },
+  { id: 8, name: "Steel Bucket (20L)", shop: "Sahu Hardware", shopVerified: false, localPrice: 180, onlinePrice: 320, distance: "900m", emoji: "🪣", available: "In stock", category: "hardware" },
+];
+
+interface ServiceProvider {
+  id: number;
+  name: string;
+  trade: string;
+  tradeIcon: LucideIcon;
+  rating: number;
+  jobs: number;
+  visitCharge: string;
+  available: string;
+  verified: boolean;
+  emoji: string;
+}
+
+const serviceProviders: ServiceProvider[] = [
+  { id: 1, name: "Ramesh Mistri", trade: "Electrician", tradeIcon: Zap, rating: 4.8, jobs: 230, visitCharge: "₹100", available: "Available now", verified: true, emoji: "⚡" },
+  { id: 2, name: "Sunil Kumar", trade: "Plumber", tradeIcon: Wrench, rating: 4.6, jobs: 185, visitCharge: "₹150", available: "Available now", verified: true, emoji: "🔧" },
+  { id: 3, name: "Ajay Painters", trade: "Painter", tradeIcon: Paintbrush, rating: 4.9, jobs: 92, visitCharge: "Free Visit", available: "Book for tomorrow", verified: true, emoji: "🎨" },
+  { id: 4, name: "Guddu Barber", trade: "Home Salon", tradeIcon: Scissors, rating: 4.7, jobs: 410, visitCharge: "₹50", available: "Available now", verified: false, emoji: "💈" },
+];
+
+interface FarmerProduct {
+  id: number;
+  name: string;
+  farmer: string;
+  totalQty: string;
+  minOrder: string;
+  pricePerKg: number;
+  marketPrice: number;
+  emoji: string;
+  freshness: string;
+}
+
+const farmerProducts: FarmerProduct[] = [
+  { id: 1, name: "Desi Aloo (Potatoes)", farmer: "Ramji Kisaan, Danapur", totalQty: "100 kg available", minOrder: "1 kg", pricePerKg: 18, marketPrice: 30, emoji: "🥔", freshness: "Harvested today" },
+  { id: 2, name: "Fresh Tomatoes", farmer: "Suresh Farm, Phulwari", totalQty: "60 kg available", minOrder: "500g", pricePerKg: 22, marketPrice: 40, emoji: "🍅", freshness: "Farm fresh" },
+  { id: 3, name: "Onion (Pyaaz)", farmer: "Mahesh Yadav, Barh", totalQty: "200 kg available", minOrder: "2 kg", pricePerKg: 25, marketPrice: 35, emoji: "🧅", freshness: "Dried & sorted" },
+  { id: 4, name: "Spinach (Palak)", farmer: "Geeta Devi, Danapur", totalQty: "30 kg available", minOrder: "250g", pricePerKg: 20, marketPrice: 40, emoji: "🥬", freshness: "Picked this morning" },
+  { id: 5, name: "Desi Ghee (Cow)", farmer: "Gopal Dairy, Bihta", totalQty: "15 litres available", minOrder: "250ml", pricePerKg: 550, marketPrice: 750, emoji: "🫕", freshness: "Pure & fresh" },
+];
+
+/* ══════════════════════════════════════════════════════════════════
+   HEADER
+   ══════════════════════════════════════════════════════════════════ */
+
+function Header() {
+  return (
+    <header className="sticky top-0 z-50 bg-[var(--header-bg)] backdrop-blur-2xl border-b border-[var(--header-border)]">
+      {/* ── Desktop ── */}
+      <div className="hidden md:block">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-6 h-16">
+            {/* Logo */}
+            <a href="/" className="flex-shrink-0 flex items-center gap-2.5">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center shadow-sm">
+                <span className="text-white text-lg font-black">प</span>
+              </div>
+              <div className="leading-none">
+                <span className="text-lg font-extrabold text-text-primary">Pehchan</span>
+                <span className="text-lg font-extrabold text-primary">Wale</span>
+                <p className="text-[9px] font-semibold text-text-muted tracking-wide">TRUSTED LOCALS</p>
+              </div>
+            </a>
+
+            {/* Location */}
+            <button className="flex items-center gap-2 px-3.5 py-2 rounded-xl hover:bg-surface transition-colors group border border-transparent hover:border-border">
+              <MapPin className="w-4 h-4 text-primary flex-shrink-0" />
+              <div className="text-left">
+                <p className="text-[9px] text-text-muted font-semibold uppercase tracking-wider">Your area</p>
+                <p className="text-sm font-bold text-text-primary flex items-center gap-0.5">
+                  Patna, Bihar
+                  <ChevronDown className="w-3.5 h-3.5 text-text-muted" />
+                </p>
+              </div>
+            </button>
+
+            <div className="flex-1" />
+
+            {/* Right icons */}
+            <div className="flex items-center gap-1">
+              <button className="relative w-10 h-10 rounded-xl flex items-center justify-center hover:bg-surface transition-colors">
+                <Bell className="w-5 h-5 text-text-secondary" />
+                <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-primary rounded-full ring-2 ring-background" />
+              </button>
+              <button className="relative w-10 h-10 rounded-xl flex items-center justify-center hover:bg-surface transition-colors">
+                <Bookmark className="w-5 h-5 text-text-secondary" />
+              </button>
+              <button className="w-10 h-10 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center hover:shadow-md transition-shadow ml-1">
+                <User className="w-5 h-5 text-white" />
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* ── Mobile ── */}
+      <div className="md:hidden">
+        <div className="flex items-center justify-between px-4 py-3">
+          <div className="flex items-center gap-2.5">
+            <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center">
+              <span className="text-white text-base font-black">प</span>
+            </div>
+            <div className="leading-none">
+              <span className="text-base font-extrabold text-text-primary">Pehchan</span>
+              <span className="text-base font-extrabold text-primary">Wale</span>
+            </div>
+          </div>
+          <div className="flex items-center gap-1">
+            <button className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg bg-surface border border-border text-xs font-semibold text-text-secondary">
+              <MapPin className="w-3.5 h-3.5 text-primary" />
+              Patna
+              <ChevronDown className="w-3 h-3 text-text-muted" />
+            </button>
+            <button className="relative w-9 h-9 rounded-xl flex items-center justify-center hover:bg-surface transition-colors">
+              <Bell className="w-[18px] h-[18px] text-text-secondary" />
+              <span className="absolute top-1.5 right-1.5 w-1.5 h-1.5 bg-primary rounded-full ring-2 ring-background" />
+            </button>
+          </div>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HERO — "What do you need?" (Dual Tabs)
+   ══════════════════════════════════════════════════════════════════ */
+
+function HeroSection() {
+  const [activeTab, setActiveTab] = useState<"find" | "fix">("find");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [problemText, setProblemText] = useState("");
+  const [photoAttached, setPhotoAttached] = useState(false);
+
+  return (
+    <section className="relative overflow-hidden">
+      {/* Background */}
+      <div className="absolute inset-0 bg-gradient-to-br from-orange-50 via-amber-50/60 to-background" />
+      <div className="absolute -top-20 -right-20 w-72 h-72 rounded-full bg-primary/5 blur-3xl" />
+      <div className="absolute -bottom-10 -left-10 w-48 h-48 rounded-full bg-accent/5 blur-3xl" />
+
+      <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-14">
+        <div className="max-w-2xl mx-auto text-center mb-6 lg:mb-8">
+          <h1 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-text-primary leading-tight mb-2">
+            Apne logon se,{" "}
+            <span className="text-gradient-primary">sahi daam mein</span> 🤝
+          </h1>
+          <p className="text-sm lg:text-base text-text-secondary max-w-lg mx-auto">
+            Find products at local shops before you wander. Get trusted mechanics &amp; repairmen through community bids.
+          </p>
+        </div>
+
+        {/* Tab switcher */}
+        <div className="max-w-xl mx-auto">
+          <div className="flex bg-surface rounded-2xl p-1.5 border border-border mb-5">
+            <button
+              onClick={() => setActiveTab("find")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-200
+                ${activeTab === "find"
+                  ? "bg-white text-primary shadow-md"
+                  : "text-text-muted hover:text-text-secondary"
+                }`}
+            >
+              <Search className="w-4 h-4" />
+              Find an Item
+            </button>
+            <button
+              onClick={() => setActiveTab("fix")}
+              className={`flex-1 flex items-center justify-center gap-2 py-3 rounded-xl text-sm font-bold transition-all duration-200
+                ${activeTab === "fix"
+                  ? "bg-white text-accent shadow-md"
+                  : "text-text-muted hover:text-text-secondary"
+                }`}
+            >
+              <Wrench className="w-4 h-4" />
+              Fix a Problem
+            </button>
+          </div>
+
+          {/* Find an Item tab */}
+          {activeTab === "find" && (
+            <div className="animate-fade-in-up">
+              <div className="flex items-center gap-3 bg-white rounded-2xl border-2 border-border px-4 py-3.5 shadow-md focus-within:border-primary/40 focus-within:shadow-lg transition-all">
+                <Search className="w-5 h-5 text-text-muted flex-shrink-0" />
+                <input
+                  type="text"
+                  placeholder="Search for detergent, laptops, fresh cabbage..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="flex-1 bg-transparent text-sm text-text-primary placeholder:text-text-muted outline-none"
+                />
+                <button className="px-4 py-2 rounded-xl bg-primary text-white text-sm font-bold hover:bg-primary-hover transition-colors active:scale-95 shadow-sm flex-shrink-0">
+                  Search
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-2 mt-3 justify-center">
+                {["Detergent", "Laptop Charger", "Fresh Vegetables", "Fan Capacitor"].map((tag) => (
+                  <button
+                    key={tag}
+                    className="text-xs font-semibold text-text-muted bg-white/80 border border-border px-3 py-1.5 rounded-full hover:border-primary/30 hover:text-primary transition-all"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Fix a Problem tab */}
+          {activeTab === "fix" && (
+            <div className="animate-fade-in-up space-y-3">
+              {/* Photo upload */}
+              <button
+                onClick={() => setPhotoAttached(!photoAttached)}
+                className={`w-full flex items-center gap-3 px-4 py-4 rounded-2xl border-2 border-dashed transition-all duration-200
+                  ${photoAttached
+                    ? "border-accent bg-accent-ghost"
+                    : "border-border bg-white hover:border-accent/40 hover:bg-accent-ghost/50"
+                  }`}
+              >
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center ${photoAttached ? "bg-accent/10" : "bg-surface"}`}>
+                  <Camera className={`w-5 h-5 ${photoAttached ? "text-accent" : "text-text-muted"}`} />
+                </div>
+                <div className="text-left flex-1">
+                  <p className={`text-sm font-bold ${photoAttached ? "text-accent" : "text-text-secondary"}`}>
+                    {photoAttached ? "📸 Photo attached!" : "📷 Upload Photo of Issue"}
+                  </p>
+                  <p className="text-[11px] text-text-muted">
+                    {photoAttached ? "Tap to remove" : "Broken TV, leaking pipe, wall cracks..."}
+                  </p>
+                </div>
+              </button>
+
+              {/* Problem description */}
+              <textarea
+                placeholder="Describe your problem... e.g. 'My ceiling fan stopped working, makes a humming sound'"
+                value={problemText}
+                onChange={(e) => setProblemText(e.target.value)}
+                rows={3}
+                className="w-full bg-white rounded-2xl border-2 border-border px-4 py-3.5 text-sm text-text-primary placeholder:text-text-muted outline-none resize-none
+                  focus:border-accent/40 focus:shadow-md transition-all"
+              />
+
+              <button className="w-full py-3.5 rounded-xl bg-gradient-to-r from-accent to-accent-light text-white text-sm font-bold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-[0.98]">
+                🔍 Get Bids from Local Experts
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TRUST STRIP
+   ══════════════════════════════════════════════════════════════════ */
+
+function TrustStrip() {
+  const stats = [
+    { icon: Store, label: "500+", sub: "Local Shops", color: "text-primary", bg: "bg-primary-subtle" },
+    { icon: Users, label: "150+", sub: "Verified Experts", color: "text-accent", bg: "bg-accent-subtle" },
+    { icon: ShieldCheck, label: "₹10", sub: "Reserve & Pickup", color: "text-success", bg: "bg-emerald-50" },
+    { icon: Truck, label: "0 km", sub: "Delivery Needed", color: "text-amber-600", bg: "bg-amber-50" },
+  ];
+
+  return (
+    <section className="bg-surface border-y border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 lg:py-5">
+        <div className="grid grid-cols-4 gap-2 lg:gap-6">
+          {stats.map((s, i) => {
+            const Icon = s.icon;
+            return (
+              <div
+                key={s.label}
+                className="flex flex-col lg:flex-row items-center gap-1.5 lg:gap-3 py-2 lg:py-0 animate-fade-in-up"
+                style={{ animationDelay: `${i * 70}ms` }}
+              >
+                <div className={`w-9 h-9 lg:w-11 lg:h-11 rounded-xl ${s.bg} flex items-center justify-center`}>
+                  <Icon className={`w-4 h-4 lg:w-5 lg:h-5 ${s.color}`} />
+                </div>
+                <div className="text-center lg:text-left">
+                  <p className="text-sm lg:text-base font-extrabold text-text-primary leading-none">{s.label}</p>
+                  <p className="text-[10px] lg:text-xs text-text-muted mt-0.5 font-medium">{s.sub}</p>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   RESERVE & PICKUP — Local Deals Grid
+   ══════════════════════════════════════════════════════════════════ */
+
+function ReservePickupGrid() {
+  const [favorites, setFavorites] = useState<Set<number>>(new Set());
+
+  const toggleFav = (id: number) => {
+    setFavorites((prev) => {
+      const next = new Set(prev);
+      next.has(id) ? next.delete(id) : next.add(id);
+      return next;
+    });
+  };
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+      <div className="flex items-center justify-between mb-4 lg:mb-6">
+        <div>
+          <h2 className="text-base lg:text-xl font-bold text-text-primary flex items-center gap-2">
+            Reserve &amp; Pickup
+            <span className="text-[10px] font-bold bg-primary-subtle text-primary px-2 py-0.5 rounded-full">SAVE vs Online</span>
+          </h2>
+          <p className="text-xs lg:text-sm text-text-muted mt-0.5">Reserve at ₹10, pick up from shop — no delivery wait</p>
+        </div>
+        <button className="text-xs sm:text-sm font-semibold text-primary flex items-center gap-1 hover:gap-1.5 transition-all group">
+          View all <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-3 md:gap-4 lg:gap-5">
+        {localProducts.map((product, index) => {
+          const savings = product.onlinePrice - product.localPrice;
+          const savingsPct = Math.round((savings / product.onlinePrice) * 100);
+          const isFav = favorites.has(product.id);
+
+          return (
+            <div
+              key={product.id}
+              className="group bg-card-bg rounded-2xl border border-card-border overflow-hidden
+                hover:shadow-lg hover:border-card-hover-border hover:-translate-y-1
+                transition-all duration-300 animate-scale-in"
+              style={{ animationDelay: `${index * 50}ms` }}
+            >
+              {/* Image area */}
+              <div className="relative aspect-[4/3] bg-gradient-to-br from-surface via-surface-raised/50 to-surface flex items-center justify-center">
+                <span className="text-5xl lg:text-6xl group-hover:scale-110 transition-transform duration-500 select-none">
+                  {product.emoji}
+                </span>
+
+                {/* Savings badge */}
+                {savingsPct > 0 && (
+                  <span className="absolute top-2.5 left-2.5 text-[10px] font-extrabold text-white bg-success px-2 py-0.5 rounded-lg shadow-sm">
+                    Save {savingsPct}%
+                  </span>
+                )}
+
+                {/* Fav */}
+                <button
+                  onClick={() => toggleFav(product.id)}
+                  className="absolute top-2 right-2 w-8 h-8 rounded-full bg-white/90 backdrop-blur-sm
+                    flex items-center justify-center shadow-sm hover:scale-110 active:scale-90 transition-transform"
+                >
+                  <Heart className={`w-4 h-4 transition-colors ${isFav ? "text-red-500 fill-red-500" : "text-slate-400"}`} />
+                </button>
+
+                {/* Distance */}
+                <div className="absolute bottom-2 right-2 flex items-center gap-1 bg-black/60 backdrop-blur-sm text-white text-[10px] font-semibold px-2 py-1 rounded-lg">
+                  <Navigation className="w-3 h-3" />
+                  {product.distance}
+                </div>
+
+                {/* Availability */}
+                <div className="absolute bottom-2 left-2 flex items-center gap-1 bg-white/90 backdrop-blur-sm text-text-primary text-[10px] font-semibold px-2 py-1 rounded-lg">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success" />
+                  {product.available}
+                </div>
+              </div>
+
+              {/* Body */}
+              <div className="p-3 lg:p-4">
+                <h3 className="text-[13px] lg:text-sm font-bold text-text-primary leading-snug line-clamp-1">
+                  {product.name}
+                </h3>
+                <p className="text-[11px] text-text-muted mt-0.5 flex items-center gap-1">
+                  <Store className="w-3 h-3 flex-shrink-0" />
+                  <span className="truncate">{product.shop}</span>
+                  {product.shopVerified && <BadgeCheck className="w-3.5 h-3.5 text-primary flex-shrink-0" />}
+                </p>
+
+                {/* Price comparison */}
+                <div className="mt-2.5 flex items-baseline gap-2">
+                  <p className="text-base lg:text-lg font-extrabold text-text-primary">
+                    ₹{product.localPrice}
+                  </p>
+                  <span className="text-[11px] text-text-muted line-through">₹{product.onlinePrice} online</span>
+                </div>
+
+                {/* Action buttons */}
+                <div className="flex gap-2 mt-3">
+                  <button className="flex-1 flex items-center justify-center gap-1 py-2 rounded-xl text-xs font-bold bg-primary text-white hover:bg-primary-hover transition-colors active:scale-95 shadow-sm">
+                    <IndianRupee className="w-3 h-3" />
+                    Reserve ₹10
+                  </button>
+                  <button className="w-9 h-9 rounded-xl border border-border flex items-center justify-center hover:bg-surface hover:border-accent/40 transition-all active:scale-95 group/dir" title="Get Directions">
+                    <Navigation className="w-3.5 h-3.5 text-text-muted group-hover/dir:text-accent transition-colors" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   TRUSTED PEHCHAN WALE — Services Section
+   ══════════════════════════════════════════════════════════════════ */
+
+function TrustedServicesSection() {
+  return (
+    <section className="bg-surface border-y border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+        <div className="flex items-center justify-between mb-4 lg:mb-6">
+          <div>
+            <h2 className="text-base lg:text-xl font-bold text-text-primary flex items-center gap-2">
+              Trusted Pehchan Wale
+              <span className="text-[10px] font-bold bg-accent-subtle text-accent px-2 py-0.5 rounded-full">VERIFIED</span>
+            </h2>
+            <p className="text-xs lg:text-sm text-text-muted mt-0.5">Local mechanics, painters &amp; electricians your neighbours trust</p>
+          </div>
+          <button className="text-xs sm:text-sm font-semibold text-accent flex items-center gap-1 hover:gap-1.5 transition-all group">
+            View all <ArrowRight className="w-3.5 h-3.5 group-hover:translate-x-0.5 transition-transform" />
+          </button>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+          {serviceProviders.map((sp, i) => {
+            const TradeIcon = sp.tradeIcon;
+            return (
+              <div
+                key={sp.id}
+                className="bg-card-bg rounded-2xl border border-card-border p-5
+                  hover:shadow-lg hover:border-card-hover-border hover:-translate-y-1
+                  transition-all duration-300 animate-scale-in"
+                style={{ animationDelay: `${i * 60}ms` }}
+              >
+                {/* Top */}
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="w-12 h-12 rounded-xl bg-accent-subtle flex items-center justify-center text-2xl select-none flex-shrink-0">
+                    {sp.emoji}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-sm font-bold text-text-primary flex items-center gap-1.5">
+                      <span className="truncate">{sp.name}</span>
+                      {sp.verified && <BadgeCheck className="w-4 h-4 text-accent flex-shrink-0" />}
+                    </h3>
+                    <p className="text-xs text-text-muted flex items-center gap-1 mt-0.5">
+                      <TradeIcon className="w-3 h-3" />
+                      {sp.trade}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Rating + jobs */}
+                <div className="flex items-center gap-3 mb-3">
+                  <div className="inline-flex items-center gap-1 bg-amber-50 border border-amber-100 px-2 py-0.5 rounded-lg">
+                    <Star className="w-3 h-3 text-amber-500 fill-amber-500" />
+                    <span className="text-xs font-bold text-amber-700">{sp.rating}</span>
+                  </div>
+                  <span className="text-[11px] text-text-muted">{sp.jobs} jobs done</span>
+                </div>
+
+                {/* Visit charge */}
+                <div className="flex items-center justify-between px-3 py-2.5 bg-surface rounded-xl mb-3">
+                  <span className="text-[11px] text-text-muted font-medium">Visit charge</span>
+                  <span className={`text-sm font-extrabold ${sp.visitCharge === "Free Visit" ? "text-success" : "text-text-primary"}`}>
+                    {sp.visitCharge}
+                  </span>
+                </div>
+
+                {/* Availability */}
+                <p className="text-[11px] text-success font-semibold flex items-center gap-1 mb-3">
+                  <span className="w-1.5 h-1.5 rounded-full bg-success animate-pulse-dot" />
+                  {sp.available}
+                </p>
+
+                {/* Actions */}
+                <div className="flex gap-2">
+                  <button className="flex-1 py-2.5 rounded-xl bg-accent text-white text-xs font-bold hover:bg-accent-hover transition-colors active:scale-95 shadow-sm">
+                    Get Quote
+                  </button>
+                  <button className="w-10 h-10 rounded-xl border border-border flex items-center justify-center hover:bg-surface hover:border-accent/40 transition-all active:scale-95" title="Call">
+                    <Phone className="w-4 h-4 text-text-muted" />
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FARMERS & BULK SECTION
+   ══════════════════════════════════════════════════════════════════ */
+
+function FarmersBulkSection() {
+  const scrollRef = useRef<HTMLDivElement>(null);
+
+  const scroll = useCallback((direction: "left" | "right") => {
+    if (!scrollRef.current) return;
+    const scrollAmount = 320;
+    scrollRef.current.scrollBy({
+      left: direction === "left" ? -scrollAmount : scrollAmount,
+      behavior: "smooth",
+    });
+  }, []);
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-10">
+      <div className="flex items-center justify-between mb-4 lg:mb-6">
+        <div>
+          <h2 className="text-base lg:text-xl font-bold text-text-primary flex items-center gap-2">
+            <Leaf className="w-5 h-5 text-success" />
+            Direct from Farmers
+          </h2>
+          <p className="text-xs lg:text-sm text-text-muted mt-0.5">Buy 1 kg or 50 kg — straight from the farm, no middlemen</p>
+        </div>
+        <div className="flex items-center gap-1.5">
+          <button
+            onClick={() => scroll("left")}
+            className="w-8 h-8 lg:w-9 lg:h-9 rounded-full border border-border flex items-center justify-center hover:bg-surface active:scale-95 transition-all"
+          >
+            <ChevronLeft className="w-4 h-4 text-text-muted" />
+          </button>
+          <button
+            onClick={() => scroll("right")}
+            className="w-8 h-8 lg:w-9 lg:h-9 rounded-full border border-border flex items-center justify-center hover:bg-surface active:scale-95 transition-all"
+          >
+            <ChevronRight className="w-4 h-4 text-text-muted" />
+          </button>
+        </div>
+      </div>
+
+      <div
+        ref={scrollRef}
+        className="flex gap-4 overflow-x-auto hide-scrollbar snap-x-mandatory pb-2"
+      >
+        {farmerProducts.map((item, i) => {
+          const savings = item.marketPrice - item.pricePerKg;
+          return (
+            <div
+              key={item.id}
+              className="flex-shrink-0 w-[280px] sm:w-[300px] bg-card-bg rounded-2xl border border-card-border overflow-hidden
+                hover:shadow-lg hover:border-card-hover-border
+                transition-all duration-300 animate-slide-in-right"
+              style={{ animationDelay: `${i * 80}ms` }}
+            >
+              {/* Green ribbon */}
+              <div className="bg-gradient-to-r from-emerald-500 to-green-500 px-4 py-2.5 flex items-center justify-between">
+                <span className="text-white text-lg select-none">{item.emoji}</span>
+                <span className="text-[10px] font-bold text-emerald-100 bg-white/20 px-2.5 py-1 rounded-full backdrop-blur-sm">
+                  🌿 {item.freshness}
+                </span>
+              </div>
+
+              <div className="p-4">
+                <h3 className="text-sm font-bold text-text-primary">{item.name}</h3>
+                <p className="text-[11px] text-text-muted mt-0.5 flex items-center gap-1">
+                  <Leaf className="w-3 h-3 text-success" />
+                  {item.farmer}
+                </p>
+
+                {/* Quantity info */}
+                <div className="flex items-center gap-3 mt-3 text-[11px]">
+                  <span className="flex items-center gap-1 font-semibold text-text-secondary bg-surface px-2 py-1 rounded-lg">
+                    <Scale className="w-3 h-3" />
+                    {item.totalQty}
+                  </span>
+                  <span className="text-text-muted">Min: {item.minOrder}</span>
+                </div>
+
+                {/* Price */}
+                <div className="flex items-baseline gap-2 mt-3">
+                  <p className="text-lg font-extrabold text-text-primary">₹{item.pricePerKg}/kg</p>
+                  <span className="text-[11px] text-text-muted line-through">₹{item.marketPrice} market</span>
+                  <span className="text-[10px] font-bold text-success">Save ₹{savings}</span>
+                </div>
+
+                {/* Actions */}
+                <div className="flex gap-2 mt-3">
+                  <button className="flex-1 py-2.5 rounded-xl bg-success text-white text-xs font-bold hover:bg-emerald-600 transition-colors active:scale-95 shadow-sm">
+                    🌾 Reserve from Farmer
+                  </button>
+                  <button className="w-9 rounded-xl border border-border flex items-center justify-center hover:bg-surface transition-all active:scale-95" title="Call farmer">
+                    <Phone className="w-3.5 h-3.5 text-text-muted" />
+                  </button>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HOW IT WORKS
+   ══════════════════════════════════════════════════════════════════ */
+
+function HowItWorks() {
+  const steps = [
+    { step: "1", title: "Search or Describe", description: "Find products by name, or upload a photo of what needs fixing", emoji: "🔍" },
+    { step: "2", title: "Compare & Reserve", description: "See local prices vs online. Reserve at ₹10 — no commitment", emoji: "💰" },
+    { step: "3", title: "Walk & Pickup", description: "Walk to the shop, inspect the product, pay the remaining amount", emoji: "🚶" },
+  ];
+
+  return (
+    <section className="bg-surface border-y border-border">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 lg:py-12">
+        <h2 className="text-base lg:text-xl font-bold text-text-primary text-center mb-2">How Pehchan Wale Works</h2>
+        <p className="text-xs lg:text-sm text-text-muted text-center mb-6 lg:mb-8 max-w-md mx-auto">
+          No delivery. No shipping. Just your neighbourhood, made searchable.
+        </p>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 lg:gap-6 max-w-3xl mx-auto">
+          {steps.map((s, i) => (
+            <div
+              key={s.step}
+              className="text-center animate-fade-in-up"
+              style={{ animationDelay: `${i * 120}ms` }}
+            >
+              <div className="w-16 h-16 mx-auto mb-3 rounded-2xl bg-card-bg border border-card-border flex items-center justify-center text-3xl shadow-sm">
+                {s.emoji}
+              </div>
+              <div className="inline-flex items-center justify-center w-6 h-6 rounded-full bg-primary text-white text-xs font-bold mb-2">
+                {s.step}
+              </div>
+              <h3 className="text-sm font-bold text-text-primary mb-1">{s.title}</h3>
+              <p className="text-xs text-text-muted leading-relaxed">{s.description}</p>
+            </div>
+          ))}
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   MOBILE BOTTOM NAV
+   ══════════════════════════════════════════════════════════════════ */
+
+function MobileBottomNav() {
+  const [activeTab, setActiveTab] = useState("Home");
+  const tabs = [
+    { icon: Search, label: "Home" },
+    { icon: ShoppingBag, label: "Reserve" },
+    { icon: Wrench, label: "Fix" },
+    { icon: Leaf, label: "Farm" },
+    { icon: User, label: "Profile" },
+  ];
+
+  return (
+    <nav className="fixed bottom-0 inset-x-0 z-50 bg-[var(--header-bg)] backdrop-blur-2xl border-t border-border md:hidden">
+      <div className="flex items-center justify-around py-1.5 px-1">
+        {tabs.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = tab.label === activeTab;
+          return (
+            <button
+              key={tab.label}
+              onClick={() => setActiveTab(tab.label)}
+              className={`flex flex-col items-center gap-0.5 px-3 py-2 rounded-2xl transition-all duration-200
+                ${isActive ? "text-primary bg-primary-ghost" : "text-text-muted hover:text-text-secondary active:scale-95"}`}
+            >
+              <Icon className={`w-5 h-5 ${isActive ? "stroke-[2.5]" : ""}`} />
+              <span className={`text-[10px] leading-tight ${isActive ? "font-bold" : "font-medium"}`}>{tab.label}</span>
+            </button>
+          );
+        })}
+      </div>
+      <div className="h-[env(safe-area-inset-bottom)]" />
+    </nav>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   FOOTER
+   ══════════════════════════════════════════════════════════════════ */
+
+function Footer() {
+  return (
+    <footer className="hidden md:block bg-stone-900 text-white mt-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-8 lg:gap-12">
+          <div className="lg:col-span-1">
+            <div className="flex items-center gap-2.5 mb-4">
+              <div className="w-9 h-9 rounded-xl bg-gradient-to-br from-primary to-primary-light flex items-center justify-center">
+                <span className="text-white text-base font-black">प</span>
+              </div>
+              <div>
+                <span className="text-lg font-extrabold text-white">Pehchan</span>
+                <span className="text-lg font-extrabold text-primary-light">Wale</span>
+              </div>
+            </div>
+            <p className="text-sm text-stone-400 leading-relaxed">
+              Your neighbourhood, made searchable. Find products, compare local prices, and connect with trusted repairmen — all without leaving your area.
+            </p>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Platform</h4>
+            <ul className="space-y-2.5 text-sm text-stone-400">
+              {["How it Works", "For Shop Owners", "For Mechanics", "For Farmers"].map((l) => (
+                <li key={l}><a href="#" className="hover:text-primary-light transition-colors">{l}</a></li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Support</h4>
+            <ul className="space-y-2.5 text-sm text-stone-400">
+              {["Help Center", "Safety", "Terms of Service", "Privacy Policy"].map((l) => (
+                <li key={l}><a href="#" className="hover:text-primary-light transition-colors">{l}</a></li>
+              ))}
+            </ul>
+          </div>
+          <div>
+            <h4 className="text-sm font-bold text-white mb-4 uppercase tracking-wider">Contact</h4>
+            <ul className="space-y-2.5 text-sm text-stone-400">
+              <li className="flex items-center gap-2"><MapPin className="w-4 h-4 text-primary-light flex-shrink-0" /> Patna, Bihar</li>
+              <li>📧 hello@pehchanwale.com</li>
+              <li>📞 +91 98765 43210</li>
+            </ul>
+          </div>
+        </div>
+        <div className="mt-10 pt-6 border-t border-stone-800 flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-stone-500">
+          <p>© 2026 Pehchan Wale · All rights reserved</p>
+          <p>Made with ❤️ in Patna for Patna</p>
+        </div>
+      </div>
+    </footer>
+  );
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   HOME PAGE — Assembly
+   ══════════════════════════════════════════════════════════════════ */
+
+export default function HomePage() {
+  return (
+    <main className="min-h-screen bg-background text-foreground">
+      <Header />
+      <HeroSection />
+      <TrustStrip />
+      <ReservePickupGrid />
+      <TrustedServicesSection />
+      <FarmersBulkSection />
+      <HowItWorks />
+      <Footer />
+      <MobileBottomNav />
+    </main>
+  );
+}

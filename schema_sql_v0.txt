@@ -1,0 +1,276 @@
+-- ============================================================
+-- PHECHAN WALE — Hyper-local Super App
+-- Database Schema for Supabase (PostgreSQL)
+-- Run this entire script in the Supabase SQL Editor.
+-- ============================================================
+
+
+-- ────────────────────────────────────────────────────────────
+-- 1. USERS TABLE
+--    Stores customers, agents, and shopkeepers (vendors).
+-- ────────────────────────────────────────────────────────────
+
+CREATE TABLE public.users (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  auth_id       UUID UNIQUE REFERENCES auth.users(id) ON DELETE CASCADE,
+  role          TEXT NOT NULL CHECK (role IN ('customer', 'agent', 'vendor')),
+  name          TEXT NOT NULL,
+  phone         TEXT NOT NULL UNIQUE,
+  wallet_balance NUMERIC(10, 2) NOT NULL DEFAULT 0.00,  -- agent commission balance (₹)
+  avatar_url    TEXT,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE  public.users IS 'All platform users — customers, field agents, and shop vendors.';
+COMMENT ON COLUMN public.users.wallet_balance IS 'Commission wallet for agents (e.g. ₹50 per verified shop).';
+COMMENT ON COLUMN public.users.auth_id IS 'FK to Supabase Auth — links this profile to the auth.users row.';
+
+
+-- ────────────────────────────────────────────────────────────
+-- 2. SHOPS TABLE
+--    Each shop is registered by an agent and can be verified.
+-- ────────────────────────────────────────────────────────────
+
+CREATE TABLE public.shops (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  agent_id      UUID NOT NULL REFERENCES public.users(id) ON DELETE RESTRICT,
+  shop_name     TEXT NOT NULL,
+  category      TEXT NOT NULL,            -- e.g. 'grocery', 'salon', 'medical'
+  address       TEXT NOT NULL,
+  latitude      DOUBLE PRECISION NOT NULL,
+  longitude     DOUBLE PRECISION NOT NULL,
+  is_verified   BOOLEAN NOT NULL DEFAULT false,
+  cover_image   TEXT,                     -- optional shop banner URL
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE  public.shops IS 'Local shops/businesses registered by field agents.';
+COMMENT ON COLUMN public.shops.agent_id IS 'The agent who registered this shop and earns ₹50 on verification.';
+COMMENT ON COLUMN public.shops.is_verified IS 'Set to TRUE after admin approval; triggers agent commission.';
+
+
+-- ────────────────────────────────────────────────────────────
+-- 3. PRODUCTS / SERVICES TABLE
+--    Items or services offered by a shop.
+-- ────────────────────────────────────────────────────────────
+
+CREATE TABLE public.products_services (
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id       UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
+  item_name     TEXT NOT NULL,
+  price         NUMERIC(10, 2) NOT NULL CHECK (price >= 0),
+  image_url     TEXT,
+  description   TEXT,
+  is_available  BOOLEAN NOT NULL DEFAULT true,
+  created_at    TIMESTAMPTZ NOT NULL DEFAULT now(),
+  updated_at    TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE  public.products_services IS 'Products or services listed by each shop.';
+
+
+-- ────────────────────────────────────────────────────────────
+-- 4. LOCAL ADS TABLE
+--    Time-limited promotional ads with countdown timers.
+-- ────────────────────────────────────────────────────────────
+
+CREATE TABLE public.local_ads (
+  id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  shop_id         UUID NOT NULL REFERENCES public.shops(id) ON DELETE CASCADE,
+  ad_title        TEXT NOT NULL,
+  description     TEXT,
+  discount_price  NUMERIC(10, 2) NOT NULL CHECK (discount_price >= 0),
+  original_price  NUMERIC(10, 2),            -- optional, for showing "was ₹X, now ₹Y"
+  image_url       TEXT,
+  expires_at      TIMESTAMPTZ NOT NULL,       -- countdown timer target
+  is_active       BOOLEAN NOT NULL DEFAULT true,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+COMMENT ON TABLE  public.local_ads IS 'Time-limited promotional ads with countdown expiry.';
+COMMENT ON COLUMN public.local_ads.expires_at IS 'The frontend countdown timer counts down to this timestamp.';
+
+
+-- ============================================================
+-- INDEXES  (for fast lookups)
+-- ============================================================
+
+CREATE INDEX idx_users_role       ON public.users(role);
+CREATE INDEX idx_users_phone      ON public.users(phone);
+CREATE INDEX idx_shops_agent      ON public.shops(agent_id);
+CREATE INDEX idx_shops_category   ON public.shops(category);
+CREATE INDEX idx_shops_location   ON public.shops(latitude, longitude);
+CREATE INDEX idx_products_shop    ON public.products_services(shop_id);
+CREATE INDEX idx_ads_shop         ON public.local_ads(shop_id);
+CREATE INDEX idx_ads_expires      ON public.local_ads(expires_at);
+
+
+-- ============================================================
+-- AUTO-UPDATE  updated_at  TRIGGER
+-- ============================================================
+
+CREATE OR REPLACE FUNCTION public.handle_updated_at()
+RETURNS TRIGGER AS $$
+BEGIN
+  NEW.updated_at = now();
+  RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER set_updated_at_users
+  BEFORE UPDATE ON public.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER set_updated_at_shops
+  BEFORE UPDATE ON public.shops
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+CREATE TRIGGER set_updated_at_products
+  BEFORE UPDATE ON public.products_services
+  FOR EACH ROW EXECUTE FUNCTION public.handle_updated_at();
+
+
+-- ============================================================
+-- ROW LEVEL SECURITY (RLS)
+-- ============================================================
+
+-- Enable RLS on all tables
+ALTER TABLE public.users              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.shops              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.products_services  ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.local_ads          ENABLE ROW LEVEL SECURITY;
+
+
+-- ── USERS ────────────────────────────────────────────────────
+
+-- Anyone can read user profiles (public directory)
+CREATE POLICY "Users are viewable by everyone"
+  ON public.users FOR SELECT
+  USING (true);
+
+-- Users can only update their own profile
+CREATE POLICY "Users can update own profile"
+  ON public.users FOR UPDATE
+  USING (auth.uid() = auth_id)
+  WITH CHECK (auth.uid() = auth_id);
+
+-- Authenticated users can insert their own profile row
+CREATE POLICY "Users can insert own profile"
+  ON public.users FOR INSERT
+  WITH CHECK (auth.uid() = auth_id);
+
+
+-- ── SHOPS ────────────────────────────────────────────────────
+
+-- Anyone can browse shops
+CREATE POLICY "Shops are viewable by everyone"
+  ON public.shops FOR SELECT
+  USING (true);
+
+-- Only the agent who registered a shop can update it
+CREATE POLICY "Agents can update own shops"
+  ON public.shops FOR UPDATE
+  USING (
+    agent_id IN (
+      SELECT id FROM public.users WHERE auth_id = auth.uid()
+    )
+  );
+
+-- Agents and vendors can insert shops
+CREATE POLICY "Agents can insert shops"
+  ON public.shops FOR INSERT
+  WITH CHECK (
+    agent_id IN (
+      SELECT id FROM public.users WHERE auth_id = auth.uid() AND role IN ('agent', 'vendor')
+    )
+  );
+
+
+-- ── PRODUCTS / SERVICES ──────────────────────────────────────
+
+-- Anyone can browse products
+CREATE POLICY "Products are viewable by everyone"
+  ON public.products_services FOR SELECT
+  USING (true);
+
+-- Shop owner (via agent) can manage products
+CREATE POLICY "Shop agents can insert products"
+  ON public.products_services FOR INSERT
+  WITH CHECK (
+    shop_id IN (
+      SELECT s.id FROM public.shops s
+      JOIN public.users u ON u.id = s.agent_id
+      WHERE u.auth_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Shop agents can update products"
+  ON public.products_services FOR UPDATE
+  USING (
+    shop_id IN (
+      SELECT s.id FROM public.shops s
+      JOIN public.users u ON u.id = s.agent_id
+      WHERE u.auth_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Shop agents can delete products"
+  ON public.products_services FOR DELETE
+  USING (
+    shop_id IN (
+      SELECT s.id FROM public.shops s
+      JOIN public.users u ON u.id = s.agent_id
+      WHERE u.auth_id = auth.uid()
+    )
+  );
+
+
+-- ── LOCAL ADS ────────────────────────────────────────────────
+
+-- Anyone can browse active ads
+CREATE POLICY "Ads are viewable by everyone"
+  ON public.local_ads FOR SELECT
+  USING (true);
+
+-- Shop agents can create ads for their shops
+CREATE POLICY "Shop agents can insert ads"
+  ON public.local_ads FOR INSERT
+  WITH CHECK (
+    shop_id IN (
+      SELECT s.id FROM public.shops s
+      JOIN public.users u ON u.id = s.agent_id
+      WHERE u.auth_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Shop agents can update ads"
+  ON public.local_ads FOR UPDATE
+  USING (
+    shop_id IN (
+      SELECT s.id FROM public.shops s
+      JOIN public.users u ON u.id = s.agent_id
+      WHERE u.auth_id = auth.uid()
+    )
+  );
+
+CREATE POLICY "Shop agents can delete ads"
+  ON public.local_ads FOR DELETE
+  USING (
+    shop_id IN (
+      SELECT s.id FROM public.shops s
+      JOIN public.users u ON u.id = s.agent_id
+      WHERE u.auth_id = auth.uid()
+    )
+  );
+
+
+-- ============================================================
+-- ✅  DONE — Schema is ready!
+-- 
+-- Next steps:
+--   1. Paste this entire script into the Supabase SQL Editor
+--   2. Click "Run" to execute
+--   3. Verify tables in Table Editor → 4 tables should appear
+-- ============================================================

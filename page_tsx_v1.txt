@@ -1,0 +1,144 @@
+"use client";
+
+import { useState, Suspense } from "react";
+import dynamic from "next/dynamic";
+import { Search, Wrench, AlertTriangle, Loader2 } from "lucide-react";
+
+/* ══════════════════════════════════════════════════════════════════
+   DYNAMIC IMPORTS (Modular Lazy-Loading)
+   These heavy components are NOT included in the initial JavaScript bundle.
+   They are only downloaded by the browser when they are actually rendered,
+   preventing lag and crashes on low-end Android devices.
+   ══════════════════════════════════════════════════════════════════ */
+
+const DynamicProductGrid = dynamic(() => import("./components/DynamicProductGrid"), {
+  loading: () => <LoadingSpinner moduleName="Product Grid" />,
+});
+
+const DynamicBiddingEngine = dynamic(() => import("./components/DynamicBiddingEngine"), {
+  loading: () => <LoadingSpinner moduleName="Bidding Engine" />,
+});
+
+const DynamicSOSEmergency = dynamic(() => import("./components/DynamicSOSEmergency"), {
+  loading: () => <LoadingSpinner moduleName="SOS Emergency System" />,
+});
+
+
+/* ══════════════════════════════════════════════════════════════════
+   UI COMPONENTS
+   ══════════════════════════════════════════════════════════════════ */
+
+function LoadingSpinner({ moduleName }: { moduleName: string }) {
+  return (
+    <div className="flex flex-col items-center justify-center p-8 bg-surface-raised rounded-2xl border border-border mt-6">
+      <Loader2 className="w-8 h-8 text-primary animate-spin mb-3" />
+      <p className="text-sm font-semibold text-text-secondary">Loading {moduleName}...</p>
+      <p className="text-[10px] text-text-muted mt-1 text-center max-w-[200px]">
+        Downloading JavaScript just for this module to save memory.
+      </p>
+    </div>
+  );
+}
+
+export default function SuperAppDashboard() {
+  const [activeModule, setActiveModule] = useState<"none" | "search" | "fix" | "sos">("none");
+
+  return (
+    <main className="min-h-screen bg-background text-foreground pb-20">
+      
+      {/* 
+        1. THE HERO SECTION (Initial Load)
+        This is extremely lightweight. It loads instantly on all devices. 
+      */}
+      <header className="bg-gradient-to-br from-primary via-primary-hover to-primary-light p-6 pt-12 pb-8 rounded-b-[2rem] shadow-lg relative overflow-hidden">
+        <div className="absolute -top-10 -right-10 w-40 h-40 bg-white/10 rounded-full blur-2xl" />
+        
+        <div className="relative z-10">
+          <h1 className="text-3xl font-black text-white mb-1">
+            Pehchan Wale
+          </h1>
+          <p className="text-sm text-primary-subtle font-medium mb-6">
+            Apne Logon Se, Sahi Daam Mein.
+          </p>
+
+          {/* Action Triggers */}
+          <div className="grid grid-cols-2 gap-3 mb-4">
+            <button 
+              onClick={() => setActiveModule("search")}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all shadow-sm
+                ${activeModule === "search" 
+                  ? "bg-white text-primary ring-2 ring-white/50" 
+                  : "bg-white/20 text-white hover:bg-white/30 border border-white/10 backdrop-blur-sm"}`}
+            >
+              <Search className="w-5 h-5" />
+              Find an Item
+            </button>
+            
+            <button 
+              onClick={() => setActiveModule("fix")}
+              className={`flex items-center gap-2 px-4 py-3 rounded-xl font-bold transition-all shadow-sm
+                ${activeModule === "fix" 
+                  ? "bg-white text-accent ring-2 ring-white/50" 
+                  : "bg-white/20 text-white hover:bg-white/30 border border-white/10 backdrop-blur-sm"}`}
+            >
+              <Wrench className="w-5 h-5" />
+              Fix a Problem
+            </button>
+          </div>
+
+          <button 
+            onClick={() => setActiveModule("sos")}
+            className={`w-full flex items-center justify-center gap-2 px-4 py-3.5 rounded-xl font-bold shadow-md transition-all
+              ${activeModule === "sos"
+                ? "bg-red-600 text-white ring-2 ring-red-400"
+                : "bg-red-500 text-white hover:bg-red-600 border border-red-400"}`}
+          >
+            <AlertTriangle className="w-5 h-5" />
+            SOS Emergency Help
+          </button>
+        </div>
+      </header>
+
+      {/* 
+        2. DYNAMIC MODULE INJECTION (Lazy Load)
+        Depending on what the user clicks, Next.js will fetch the JavaScript 
+        for that specific component over the network on-the-fly.
+      */}
+      <div className="max-w-xl mx-auto px-4 mt-2">
+        {activeModule === "none" && (
+          <div className="text-center mt-12 px-6">
+            <div className="w-16 h-16 bg-surface-raised rounded-full flex items-center justify-center mx-auto mb-4 border border-border">
+              <span className="text-2xl">⚡</span>
+            </div>
+            <h2 className="text-lg font-bold text-text-primary mb-2">Lightning Fast Initial Load</h2>
+            <p className="text-sm text-text-muted">
+              Select an option above. The app will only download the heavy code (Maps, Bidding Logic, Camera API) when you actually need it.
+            </p>
+          </div>
+        )}
+
+        {/* 
+          Suspense boundaries ensure that while the JS bundle is downloading,
+          the user sees the <LoadingSpinner /> fallback.
+        */}
+        {activeModule === "search" && (
+          <Suspense fallback={<LoadingSpinner moduleName="Product Grid" />}>
+            <DynamicProductGrid />
+          </Suspense>
+        )}
+
+        {activeModule === "fix" && (
+          <Suspense fallback={<LoadingSpinner moduleName="Bidding Engine" />}>
+            <DynamicBiddingEngine />
+          </Suspense>
+        )}
+
+        {activeModule === "sos" && (
+          <Suspense fallback={<LoadingSpinner moduleName="SOS Emergency System" />}>
+            <DynamicSOSEmergency />
+          </Suspense>
+        )}
+      </div>
+    </main>
+  );
+}
