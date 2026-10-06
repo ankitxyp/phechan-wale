@@ -150,13 +150,12 @@ function PageHeader({ step }: { step: Step }) {
             {(["form", "scanning", "bids"] as Step[]).map((s, i) => (
               <div
                 key={s}
-                className={`h-1.5 rounded-full transition-all duration-500 ${
-                  s === step
+                className={`h-1.5 rounded-full transition-all duration-500 ${s === step
                     ? "w-6 bg-accent"
                     : (["form", "scanning", "bids"].indexOf(step) > i)
-                    ? "w-3 bg-accent/40"
-                    : "w-3 bg-border"
-                }`}
+                      ? "w-3 bg-accent/40"
+                      : "w-3 bg-border"
+                  }`}
               />
             ))}
           </div>
@@ -218,7 +217,7 @@ function RequestForm({ onSubmit }: { onSubmit: (reqId: string | null) => void })
         const { error: uploadError } = await supabase.storage
           .from("problem-photos")
           .upload(fileName, photo);
-          
+
         if (!uploadError) {
           const { data: publicUrlData } = supabase.storage
             .from("problem-photos")
@@ -240,9 +239,9 @@ function RequestForm({ onSubmit }: { onSubmit: (reqId: string | null) => void })
         }])
         .select()
         .single();
-        
+
       if (error) throw error;
-      
+
       setIsSubmitting(false);
       onSubmit(data.id);
     } catch (err) {
@@ -601,7 +600,7 @@ function LiveBidsDashboard({ requestId }: { requestId: string | null }) {
         setVisibleBids(realBids);
       }
     };
-    
+
     fetchBids();
 
     const channel = supabase
@@ -609,7 +608,7 @@ function LiveBidsDashboard({ requestId }: { requestId: string | null }) {
       .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'vendor_bids', filter: `request_id=eq.${requestId}` }, (payload) => {
         const newBid = payload.new;
         setVisibleBids((prev) => [
-          ...prev, 
+          ...prev,
           {
             ...mockBids[prev.length % mockBids.length],
             id: newBid.id,
@@ -712,7 +711,7 @@ function LiveBidsDashboard({ requestId }: { requestId: string | null }) {
             </div>
           </div>
         )}
-        
+
         {visibleBids.map((bid, i) => {
           const isLowest = bid.price === Math.min(...visibleBids.map((b) => b.price));
 

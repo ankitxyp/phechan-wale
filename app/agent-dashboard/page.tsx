@@ -27,8 +27,13 @@ import {
   Clock,
   TrendingUp,
   AlertCircle,
+  Download,
   type LucideIcon,
 } from "lucide-react";
+
+import jsPDF from "jspdf";
+import html2canvas from "html2canvas";
+import ShopCertificate from "../components/ShopCertificate";
 
 /* ══════════════════════════════════════════════════════════════════
    TYPES & CONFIG
@@ -220,7 +225,7 @@ function SectionDivider({ icon: Icon, label }: { icon: LucideIcon; label: string
    REGISTRATION FORM
    ══════════════════════════════════════════════════════════════════ */
 
-function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
+function RegistrationForm({ onSuccess }: { onSuccess: (shopData: { name: string; id: string }) => void }) {
   // Shop Details
   const [shopName, setShopName] = useState("");
   const [category, setCategory] = useState<ShopCategory | "">("");
@@ -365,7 +370,7 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
       // 3. Credit Agent Wallet ₹50
       await creditAgentWallet("agent-123", 50);
 
-      onSuccess();
+      onSuccess({ name: shopName, id: newShop?.id || "temp-id" });
     } catch (error) {
       console.error("Failed to register shop:", error);
       setErrors({ ...errors, form: "Failed to register shop to database. Please try again." });
@@ -761,10 +766,36 @@ function RegistrationForm({ onSuccess }: { onSuccess: () => void }) {
 function SuccessCard({
   onRegisterAnother,
   totalEarned,
+  shopData,
 }: {
   onRegisterAnother: () => void;
   totalEarned: number;
+  shopData?: { name: string; id: string };
 }) {
+  const certificateRef = useRef<HTMLDivElement>(null);
+  const [downloading, setDownloading] = useState(false);
+
+  const downloadCertificate = async () => {
+    if (!certificateRef.current) return;
+    setDownloading(true);
+    try {
+      const canvas = await html2canvas(certificateRef.current, {
+        scale: 2,
+        useCORS: true,
+      });
+      const imgData = canvas.toDataURL("image/png");
+      const pdf = new jsPDF("p", "mm", "a4");
+      const pdfWidth = pdf.internal.pageSize.getWidth();
+      const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+      pdf.addImage(imgData, "PNG", 0, 0, pdfWidth, pdfHeight);
+      pdf.save(`${shopData?.name || "Shop"}_Certificate.pdf`);
+    } catch (err) {
+      console.error("Error generating PDF", err);
+    } finally {
+      setDownloading(false);
+    }
+  };
+
   const shareOnWhatsApp = () => {
     const message = encodeURIComponent(
       `🎉 A new shop has been registered on PehchanWale!\n\nCheck out local shops, compare prices & support your neighbourhood.\n\n👉 https://pehchanwale.com`
@@ -838,14 +869,41 @@ function SuccessCard({
             Register Another Shop
           </button>
           <button
+            onClick={downloadCertificate}
+            disabled={downloading}
+            className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-white border-2 border-emerald-500 text-emerald-700 text-sm font-bold
+              shadow-md hover:shadow-lg hover:-translate-y-0.5 transition-all active:scale-[0.97] disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {downloading ? (
+              <>
+                <Loader2 className="w-4 h-4 animate-spin" />
+                Generating PDF...
+              </>
+            ) : (
+              <>
+                <Download className="w-4 h-4" />
+                📥 Download QR Certificate
+              </>
+            )}
+          </button>
+          <button
             onClick={shareOnWhatsApp}
             className="flex items-center justify-center gap-2 py-3.5 rounded-2xl bg-[#25D366] text-white text-sm font-bold
-              shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-[0.97]"
+              shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition-all active:scale-[0.97] sm:col-span-2"
           >
             <Share2 className="w-4 h-4" />
             Share on WhatsApp
           </button>
         </div>
+
+        {/* Hidden Certificate for PDF Generation */}
+        {shopData && (
+          <ShopCertificate
+            ref={certificateRef}
+            shopName={shopData.name}
+            shopUrl={`https://pehchanwale.com/shop/${shopData.id}`}
+          />
+        )}
       </div>
     </div>
   );
@@ -858,11 +916,13 @@ function SuccessCard({
 export default function AgentDashboardPage() {
   const [shopsRegistered, setShopsRegistered] = useState(3);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [currentShopData, setCurrentShopData] = useState<{ name: string; id: string } | null>(null);
 
   const totalEarned = shopsRegistered * 50;
 
-  const handleSuccess = () => {
+  const handleSuccess = (shopData: { name: string; id: string }) => {
     setShopsRegistered((prev) => prev + 1);
+    setCurrentShopData(shopData);
     setShowSuccess(true);
   };
 
@@ -890,7 +950,7 @@ export default function AgentDashboardPage() {
 
         {/* Form or Success */}
         {showSuccess ? (
-          <SuccessCard onRegisterAnother={handleRegisterAnother} totalEarned={totalEarned} />
+          <SuccessCard onRegisterAnother={handleRegisterAnother} totalEarned={totalEarned} shopData={currentShopData || undefined} />
         ) : (
           <RegistrationForm onSuccess={handleSuccess} />
         )}
