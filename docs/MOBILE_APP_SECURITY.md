@@ -28,7 +28,7 @@ All database access from the mobile applications happens via the Supabase PostgR
 
 ### 3.1 Existing Table Policies
 *   **`profiles`**:
-    *   *Select*: Publicly viewable (needed for shop/provider discovery).
+    *   *Select*: Public SELECT is restricted to public provider/shop metadata (name, shop info, public rating). Customer/buyer profiles and sensitive columns (wallet_balance, private phone numbers, home addresses) must strictly require auth.uid() = id or be accessed via a secure view to prevent data harvesting.
     *   *Insert/Update*: Users can only insert/modify their own row (`auth.uid() = auth_id`).
 *   **`listings`**:
     *   *Select*: Publicly viewable.
@@ -57,6 +57,7 @@ All database access from the mobile applications happens via the Supabase PostgR
 *   **Pricing:** The mobile client *never* dictates the final price of an item or service for checkout/reservation. The server must re-fetch the current price from the `listings` table when generating a transaction.
 *   **Payment State:** `paymentSuccess=true` sent from a mobile app is strictly ignored for fulfillment. Payment status is only updated via secure webhooks from the payment gateway provider (e.g., Razorpay/PayU) directly to Supabase.
 *   **State Machine Transitions:** Status changes (e.g., `reservation` moving from `active` to `picked_up`, or `kyc` moving to `approved`) must be validated against allowed transitions in Postgres constraints or triggers to prevent skipping steps.
+*   **Payment Webhook Integrity:** All inbound payment webhooks must validate cryptographic HMAC signatures (using the gateway's webhook secret) before recording transactions or changing order/reservation states.
 
 ### 4.2 Agent KYC Constraints
 *   **Self-Approval Prevention:** The system must strictly enforce that an agent (`auth.uid()`) cannot approve a KYC request they submitted themselves.

@@ -70,14 +70,16 @@ This document details the functional specifications for the initial release (V1)
 
 ### 3.5 Service Marketplace (Booking Flow)
 *   **Discovery:** View profiles of mechanics, plumbers, electricians, etc.
-*   **Request Creation:** Customer selects category, describes problem, uploads photo (optional), sets preferred time.
+*   **Request Creation:** Customer selects category, describes problem, uploads photo (optional), sets preferred time. Includes an **"Emergency / SOS Mode" toggle** that prioritizes notifications to nearby providers within a 3-5 km radius.
 *   **Bidding Mechanism:** Request is broadcast to nearby providers. Providers submit bids (price, ETA, message).
 *   **State Machine (`customer_requests`):**
     1.  `open`: Waiting for bids.
     2.  `bidding`: Bids are coming in.
     3.  `assigned`: Customer accepted a bid.
-    4.  `solved`: Job completed.
-    5.  `cancelled`: Customer cancelled request.
+    4.  `in_progress`: Provider arrived and started work.
+    5.  `solved`: Job completed.
+    6.  `cancelled`: Customer cancelled request.
+*   **Verification PIN:** When a job is assigned, the customer app generates a secure 4-digit PIN. The provider must enter this PIN in the Partner App to transition the job to `in_progress` and confirm work completion.
 *   **Actions:** Contact provider, Accept bid, Mark completed, Rate provider.
 
 ### 3.6 Customer Dashboard
@@ -113,6 +115,7 @@ This document details the functional specifications for the initial release (V1)
     *   Form to capture new shop details (Name, Owner, Category, Phone).
     *   Location capture (GPS).
     *   Photo capture (Storefront, Owner).
+    *   **Catalog Presets:** Allow agents to optionally select a pre-configured product template (e.g., General Store Top 50, Dairy & Bakery) during registration to automatically populate standard items.
 *   **KYC Management:**
     *   Upload required documents for shop verification.
     *   **State Machine:** `DRAFT` -> `PENDING` -> `APPROVED` -> `REJECTED` -> `RESUBMISSION_REQUIRED`.

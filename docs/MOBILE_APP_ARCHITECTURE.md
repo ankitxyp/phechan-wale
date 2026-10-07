@@ -243,6 +243,9 @@ phechan-wale/                          ← existing repo root
 ```
 
 **Migration Strategy for Existing Web App:**
+
+**PREREQUISITE:** Do not execute any file moves or folder reorganizations until the inner Git repository (phechan-wale) has successfully pushed the backup branch 'backup/pre-monorepo-migration' to origin, and Vercel build configuration has been verified.
+
 1. Move `app/` → `apps/web/`
 2. Update import paths
 3. Update Vercel build settings to point to `apps/web/`
@@ -304,4 +307,4 @@ Push notification tokens per user/device.
 | Supabase SMS/OTP may not be enabled in production | **Medium** | Verify Supabase project settings; configure SMS provider (Twilio) |
 | Two duplicate Supabase client files | **Low** | Consolidate during shared-api package creation |
 | Large monolithic page components (1000+ line files) | **Medium** | Mobile app will use proper component decomposition from the start |
-| No existing test infrastructure | **Medium** | Add testing from Phase 24 onwards; critical paths tested earlier |
+| No existing test infrastructure | **Medium** | Add testing in Phase 18 (Testing & Release) with critical path tests implemented during earlier feature milestones. |
