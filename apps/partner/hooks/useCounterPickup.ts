@@ -8,19 +8,25 @@ export interface PendingPickup extends Reservation {
   profiles: Pick<Profile, "id" | "name" | "phone">;
 }
 
+export interface DailyHisaab {
+  count: number;
+  totalCash: number;
+}
+
 export function useCounterPickup() {
   const { user } = useAuth();
   const [pendingPickups, setPendingPickups] = useState<PendingPickup[]>([]);
+  const [dailyHisaab, setDailyHisaab] = useState<DailyHisaab>({ count: 0, totalCash: 0 });
   const [isLoading, setIsLoading] = useState(true);
   const [isVerifying, setIsVerifying] = useState(false);
 
-  const fetchPickups = useCallback(async () => {
+  const fetchPickupsAndHisaab = useCallback(async () => {
     if (!user) return;
     setIsLoading(true);
 
     try {
-      // Use !inner on listings to filter reservations where the linked listing belongs to the user
-      const { data, error } = await supabase
+      // Fetch active reservations
+      const { data: pendingData, error: pendingError } = await supabase
         .from('reservations')
         .select(`
           *,
@@ -35,18 +41,45 @@ export function useCounterPickup() {
         .eq('status', 'active')
         .order('created_at', { ascending: true });
 
-      if (error) throw error;
-      setPendingPickups((data || []) as unknown as PendingPickup[]);
+      if (pendingError) throw pendingError;
+      setPendingPickups((pendingData || []) as unknown as PendingPickup[]);
+
+      // Fetch today's completed reservations for Hisaab
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+
+      const { data: todayData, error: todayError } = await supabase
+        .from('reservations')
+        .select(`
+          *,
+          listings!inner (price, seller_id)
+        `)
+        .eq('listings.seller_id', user.id)
+        .eq('status', 'picked_up')
+        .gte('updated_at', today.toISOString());
+
+      if (todayError) throw todayError;
+
+      let totalCash = 0;
+      todayData?.forEach((res: any) => {
+        totalCash += res.listings?.price || 0;
+      });
+
+      setDailyHisaab({
+        count: todayData?.length || 0,
+        totalCash
+      });
+
     } catch (err) {
-      console.error('Failed to fetch pending pickups', err);
+      console.error('Failed to fetch data', err);
     } finally {
       setIsLoading(false);
     }
   }, [user]);
 
   useEffect(() => {
-    fetchPickups();
-  }, [fetchPickups]);
+    fetchPickupsAndHisaab();
+  }, [fetchPickupsAndHisaab]);
 
   const verifyPin = async (enteredPin: string) => {
     if (!user) throw new Error('Not authenticated');
@@ -56,8 +89,6 @@ export function useCounterPickup() {
 
     setIsVerifying(true);
     try {
-      // For this mockup, PIN is derived from reservation ID:
-      // item.id.replace(/[^0-9]/g, '0').substring(0, 4).padEnd(4, '0')
       const matchedPickup = pendingPickups.find(pickup => {
         const expectedPin = pickup.id.replace(/[^0-9]/g, '0').substring(0, 4).padEnd(4, '0');
         return expectedPin === enteredPin;
@@ -67,16 +98,18 @@ export function useCounterPickup() {
         throw new Error('Invalid or expired PIN / अमान्य या समाप्त पिन');
       }
 
-      // Update reservation status to picked_up
       const { error } = await supabase
         .from('reservations')
-        .update({ status: 'picked_up' })
+        .update({ 
+          status: 'picked_up',
+          updated_at: new Date().toISOString()
+        })
         .eq('id', matchedPickup.id)
-        .eq('status', 'active'); // ensure it's still active
+        .eq('status', 'active');
 
       if (error) throw error;
 
-      await fetchPickups();
+      await fetchPickupsAndHisaab();
       return matchedPickup;
     } finally {
       setIsVerifying(false);
@@ -85,9 +118,10 @@ export function useCounterPickup() {
 
   return {
     pendingPickups,
+    dailyHisaab,
     isLoading,
     isVerifying,
     verifyPin,
-    refetch: fetchPickups,
+    refetch: fetchPickupsAndHisaab,
   };
 }

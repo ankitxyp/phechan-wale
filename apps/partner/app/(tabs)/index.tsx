@@ -1,10 +1,12 @@
 import React, { useState, useRef } from 'react';
 import { View, Text, StyleSheet, TextInput, TouchableOpacity, FlatList, RefreshControl, Alert, Linking, Keyboard } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import * as Haptics from 'expo-haptics';
+import * as Speech from 'expo-speech';
 import { useCounterPickup, PendingPickup } from '../../hooks/useCounterPickup';
 
 export default function CounterScreen() {
-  const { pendingPickups, isLoading, isVerifying, verifyPin, refetch } = useCounterPickup();
+  const { pendingPickups, dailyHisaab, isLoading, isVerifying, verifyPin, refetch } = useCounterPickup();
   const [pin, setPin] = useState(['', '', '', '']);
   const [verifiedPickup, setVerifiedPickup] = useState<PendingPickup | null>(null);
   const inputs = useRef<Array<TextInput | null>>([]);
@@ -40,7 +42,13 @@ export default function CounterScreen() {
       const result = await verifyPin(enteredPin);
       setVerifiedPickup(result);
       setPin(['', '', '', '']); // clear inputs
+      
+      // Native Feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      Speech.speak(`सामान उठाव सफल! ग्राहक से ${result.listings.price} रुपये प्राप्त करें`, { language: 'hi-IN' });
+      
     } catch (err: any) {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       Alert.alert('Verification Failed', err.message);
     }
   };
@@ -53,14 +61,32 @@ export default function CounterScreen() {
     }
   };
 
+  const handleWhatsApp = (pickup: PendingPickup) => {
+    if (pickup.profiles?.phone) {
+      const msg = `नमस्ते ${pickup.profiles.name}, पहचान वाले पर आपका ऑर्डर ${pickup.listings.title} तैयार है। कृपया दुकान से उठा लें।`;
+      Linking.openURL(`whatsapp://send?phone=+91${pickup.profiles.phone}&text=${encodeURIComponent(msg)}`).catch(() => {
+        Alert.alert('Error', 'Make sure WhatsApp is installed on your device.');
+      });
+    } else {
+      Alert.alert('Not Available', 'Customer phone number is not available.');
+    }
+  };
+
   const renderHeader = () => (
     <View style={styles.header}>
-      <View style={styles.headerTextContainer}>
-        <Text style={styles.headerTitle}>Dukaan Counter</Text>
-        <Text style={styles.headerSubtitle}>दुकान काउंटर</Text>
-      </View>
-      <View style={styles.badge}>
-        <Text style={styles.badgeText}>{pendingPickups.length}</Text>
+      <Text style={styles.headerTitle}>Aaj Ka Hisaab</Text>
+      <Text style={styles.headerSubtitle}>आज का हिसाब</Text>
+      
+      <View style={styles.hisaabRow}>
+        <View style={styles.hisaabStat}>
+          <Text style={styles.hisaabValue}>📦 {dailyHisaab.count}</Text>
+          <Text style={styles.hisaabLabel}>Today's Pickups</Text>
+        </View>
+        <View style={styles.hisaabDivider} />
+        <View style={styles.hisaabStat}>
+          <Text style={styles.hisaabValue}>💰 ₹{dailyHisaab.totalCash}</Text>
+          <Text style={styles.hisaabLabel}>Cash Handled</Text>
+        </View>
       </View>
     </View>
   );
@@ -127,8 +153,6 @@ export default function CounterScreen() {
   };
 
   const renderQueueItem = ({ item }: { item: PendingPickup }) => {
-    // Generate pseudo PIN for reference (partner shouldn't see it normally, but just for debugging or matching if needed, though they don't see it here)
-    // Expiry calculation
     const isExpired = new Date() > new Date(item.expires_at);
     const statusText = isExpired ? 'Expired' : 'Awaiting Pickup';
     
@@ -143,11 +167,18 @@ export default function CounterScreen() {
           </View>
         </View>
         <Text style={styles.queueItems}>{item.listings.title}</Text>
+        
         <View style={styles.queueFooter}>
           <Text style={styles.queueAmount}>To Collect: ₹{item.listings.price}</Text>
-          <TouchableOpacity onPress={() => handleCall(item.profiles?.phone)}>
-            <Text style={styles.callText}>Call Customer</Text>
-          </TouchableOpacity>
+          
+          <View style={styles.queueActions}>
+            <TouchableOpacity onPress={() => handleCall(item.profiles?.phone)} style={styles.actionIconBtn}>
+              <Ionicons name="call" size={18} color="#2563eb" />
+            </TouchableOpacity>
+            <TouchableOpacity onPress={() => handleWhatsApp(item)} style={styles.actionIconBtn}>
+              <Ionicons name="logo-whatsapp" size={18} color="#16a34a" />
+            </TouchableOpacity>
+          </View>
         </View>
       </View>
     );
@@ -191,27 +222,27 @@ export default function CounterScreen() {
 const styles = StyleSheet.create({
   container: { flex: 1, backgroundColor: '#f1f5f9' },
   header: {
+    backgroundColor: '#1e293b',
+    padding: 20,
+    borderBottomLeftRadius: 20,
+    borderBottomRightRadius: 20,
+    marginBottom: 20,
+  },
+  headerTitle: { fontSize: 20, fontWeight: 'bold', color: '#f8fafc' },
+  headerSubtitle: { fontSize: 13, color: '#94a3b8', marginTop: 2, marginBottom: 16 },
+  hisaabRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    backgroundColor: '#334155',
+    borderRadius: 12,
     padding: 16,
-    backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderBottomColor: '#e2e8f0',
-  },
-  headerTextContainer: { flex: 1 },
-  headerTitle: { fontSize: 22, fontWeight: 'bold', color: '#0f172a' },
-  headerSubtitle: { fontSize: 13, color: '#64748b', marginTop: 2 },
-  badge: {
-    backgroundColor: '#3b82f6',
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    justifyContent: 'center',
+    justifyContent: 'space-around',
     alignItems: 'center',
   },
-  badgeText: { color: '#ffffff', fontWeight: 'bold', fontSize: 16 },
-  content: { padding: 16 },
+  hisaabStat: { alignItems: 'center' },
+  hisaabValue: { fontSize: 18, fontWeight: '700', color: '#f8fafc', marginBottom: 4 },
+  hisaabLabel: { fontSize: 12, color: '#94a3b8' },
+  hisaabDivider: { width: 1, height: 30, backgroundColor: '#475569' },
+  content: { padding: 16, paddingTop: 0 },
   verifyBox: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
@@ -305,7 +336,17 @@ const styles = StyleSheet.create({
   queueItems: { fontSize: 14, color: '#475569', marginBottom: 12 },
   queueFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', borderTopWidth: 1, borderTopColor: '#f1f5f9', paddingTop: 12 },
   queueAmount: { fontSize: 14, fontWeight: '700', color: '#10b981' },
-  callText: { fontSize: 13, fontWeight: '600', color: '#2563eb' },
+  queueActions: { flexDirection: 'row', gap: 12 },
+  actionIconBtn: {
+    backgroundColor: '#f8fafc',
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
   emptyState: {
     backgroundColor: '#ffffff',
     borderRadius: 16,
