@@ -33,6 +33,19 @@ CREATE TABLE IF NOT EXISTS public.shops (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
+-- Ensure columns exist if table was already created manually
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS owner_id UUID REFERENCES public.profiles(id) ON DELETE CASCADE;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS name TEXT;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS category TEXT;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS address TEXT;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS opening_hours JSONB;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS is_verified BOOLEAN NOT NULL DEFAULT false;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS logo_url TEXT;
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS created_at TIMESTAMPTZ NOT NULL DEFAULT now();
+ALTER TABLE public.shops ADD COLUMN IF NOT EXISTS updated_at TIMESTAMPTZ NOT NULL DEFAULT now();
+
 -- Service Bookings (Tracking workflow stages)
 CREATE TABLE IF NOT EXISTS public.service_bookings (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
