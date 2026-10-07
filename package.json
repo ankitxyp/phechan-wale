@@ -9,6 +9,10 @@
   "scripts": {
     "build:web": "npm run build --workspace=web",
     "dev:web": "npm run dev --workspace=web",
-    "lint:web": "npm run lint --workspace=web"
+    "lint:web": "npm run lint --workspace=web",
+    "start:customer": "npm run start --workspace=apps/customer",
+    "start:partner": "npm run start --workspace=apps/partner",
+    "typecheck": "tsc --noEmit --project tsconfig.json",
+    "verify:all": "node scripts/verify-monorepo.js && npm run build:web"
   }
 }

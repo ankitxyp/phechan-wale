@@ -325,7 +325,6 @@ const styles = StyleSheet.create({
     borderLeftColor: '#3b82f6',
     borderWidth: 1,
     borderColor: '#e2e8f0',
-    borderLeftStyle: 'solid',
   },
   queueHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
   customerName: { fontSize: 16, fontWeight: '700', color: '#0f172a' },
