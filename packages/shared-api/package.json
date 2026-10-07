@@ -5,7 +5,8 @@
   "types": "src/index.ts",
   "private": true,
   "dependencies": {
+    "@pehchan-wale/shared-types": "*",
     "@supabase/supabase-js": "^2.39.0",
-    "@pehchan-wale/shared-types": "*"
+    "react": "^19.2.3"
   }
 }
